@@ -51,11 +51,13 @@ ren_star_reading <- ren_star_reading_table %>%  #get_table("StarReadingV2") %>%
          lexile_score = gsub("BR", "-", lexile_score),
          lexile_score = as.numeric(lexile_score)) %>%
   select(-lexile) %>%
+  mutate(grade_equivalent = gsub("<|>", "", grade_equivalent),
+         grade_equivalent = as.numeric(grade_equivalent)) %>%
   group_by(student_identifier,
            screening_period_window_name,
            academic_year) %>%
   summarise(grade_equivalent = max(grade_equivalent),
-            lexile_score= max(lexile_score)) %>%
+            lexile_score = max(lexile_score)) %>%
   ungroup() %>%
   rename(student_number = student_identifier) %>%
   pivot_wider(names_from = screening_period_window_name, 

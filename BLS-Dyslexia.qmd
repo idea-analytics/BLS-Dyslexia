@@ -1,0 +1,102 @@
+---
+title: "BLS Dyslexia"
+author: "IM/EC"
+format: html
+editor: visual
+---
+
+## Quarto
+
+## Running Code
+
+
+```{r load_data, include=FALSE}
+source("data/load-project-data.R")
+
+project_data_full <- project_data %>% 
+  filter(academic_year == "2023-2024") %>%
+  left_join( project_data %>% 
+  filter(academic_year == "2022-2023") %>% 
+    select(-academic_year,
+    -first_name,
+    -last_name,
+    -sped,
+    -grade_level_id,
+    -school_number,
+    -is_csi,
+    -grade_level_display,
+    -school_name,
+    -region_name,
+    -teacher_email,
+    -in_program) %>%
+    setNames(paste0('2022_2023_', names(.))) %>%
+    rename(student_number = `2022_2023_student_number`), join_by(student_number)) 
+  
+
+```
+
+
+
+```{r check}
+
+library(MatchIt)
+
+matchit_data_ge_eoy <- project_data_full %>%
+  filter(!is.na(`2022_2023_grade_equivalent_renstar_eoy`),
+         !is.na(grade_equivalent_renstar_eoy))
+
+matchit_check <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_eoy` + grade_equivalent_renstar_eoy, 
+                    data = matchit_data_ge_eoy, method = NULL, distance = "glm")
+
+summary(matchit_check)
+```
+
+
+
+```{r match}
+
+library(MatchIt)
+
+
+matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+                    `2022_2023_grade_equivalent_renstar_eoy` + grade_equivalent_renstar_eoy,
+                    data = matchit_data_ge_eoy, method = "nearest", distance = "glm")
+
+# matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+#                     `2022_2023_grade_equivalent_renstar_eoy` + grade_equivalent_renstar_eoy,
+#                     data = matchit_data_ge_eoy, method = "full", distance = "glm", link = "probit")
+
+
+
+summary(matchit_match)
+
+plot(summary(matchit_match))
+
+plot(matchit_match, type = "jitter", interactive = FALSE)
+
+plot(matchit_match, type = "density", interactive = FALSE,
+     which.xs = ~ grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_eoy`)
+
+```
+```{r effects}
+
+library("marginaleffects")
+
+
+matchit_matched_data <- match.data(matchit_match)
+
+fit <- lm(grade_equivalent_renstar_eoy ~ in_program * (grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_eoy`), data = matchit_matched_data, 
+          weights = weights)
+
+effects <- avg_comparisons(fit,
+                variables = "in_program",
+                vcov = ~subclass,
+                newdata = subset(matchit_matched_data, in_program == 1),
+                wts = "weights")
+
+effects
+
+```
