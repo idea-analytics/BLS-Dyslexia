@@ -30,16 +30,21 @@ project_data_full <- project_data %>%
     -teacher_email,
     -in_program) %>%
     setNames(paste0('2022_2023_', names(.))) %>%
-    rename(student_number = `2022_2023_student_number`), join_by(student_number)) 
+    rename(student_number = `2022_2023_student_number`), join_by(student_number)) %>%
+  mutate(grade_equivalent_renstar_growth = grade_equivalent_renstar_eoy - grade_equivalent_renstar_boy,
+         `2022_2023_grade_equivalent_renstar_growth` = `2022_2023_grade_equivalent_renstar_eoy` - `grade_equivalent_renstar_boy`)
+
+write.csv(project_data_full, "data/project_data_full.csv")
   
 
 ```
 
 
 
-```{r check}
+```{r ge_renstar_eoy}
 
 library(MatchIt)
+library("marginaleffects")
 
 matchit_data_ge_eoy <- project_data_full %>%
   filter(!is.na(`2022_2023_grade_equivalent_renstar_eoy`),
@@ -50,23 +55,12 @@ matchit_check <- matchit(in_program ~ grade_level_id + sped + is_csi + region_na
                     data = matchit_data_ge_eoy, method = NULL, distance = "glm")
 
 summary(matchit_check)
-```
 
-
-
-```{r match}
-
-library(MatchIt)
 
 
 matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
                     `2022_2023_grade_equivalent_renstar_eoy` + grade_equivalent_renstar_eoy,
                     data = matchit_data_ge_eoy, method = "nearest", distance = "glm")
-
-# matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
-#                     `2022_2023_grade_equivalent_renstar_eoy` + grade_equivalent_renstar_eoy,
-#                     data = matchit_data_ge_eoy, method = "full", distance = "glm", link = "probit")
-
 
 
 summary(matchit_match)
@@ -79,10 +73,6 @@ plot(matchit_match, type = "density", interactive = FALSE,
      which.xs = ~ grade_level_id + sped + is_csi + region_name + 
                     `2022_2023_grade_equivalent_renstar_eoy`)
 
-```
-```{r effects}
-
-library("marginaleffects")
 
 
 matchit_matched_data <- match.data(matchit_match)
@@ -99,4 +89,177 @@ effects <- avg_comparisons(fit,
 
 effects
 
+
+```
+
+
+```{r ge_renstar_growth}
+
+library(MatchIt)
+library("marginaleffects")
+
+matchit_data_ge_eoy <- project_data_full %>%
+  filter(!is.na(`2022_2023_grade_equivalent_renstar_growth`),
+         !is.na(grade_equivalent_renstar_growth))
+
+matchit_check <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_growth` + grade_equivalent_renstar_growth, 
+                    data = matchit_data_ge_eoy, method = NULL, distance = "glm")
+
+summary(matchit_check)
+
+
+
+matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+                    `2022_2023_grade_equivalent_renstar_growth` + grade_equivalent_renstar_growth,
+                    data = matchit_data_ge_eoy, method = "nearest", distance = "glm")
+
+
+summary(matchit_match)
+
+plot(summary(matchit_match))
+
+plot(matchit_match, type = "jitter", interactive = FALSE)
+
+plot(matchit_match, type = "density", interactive = FALSE,
+     which.xs = ~ grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_growth`)
+
+
+
+matchit_matched_data <- match.data(matchit_match)
+
+fit <- lm(grade_equivalent_renstar_growth ~ in_program * (grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_growth`), data = matchit_matched_data, 
+          weights = weights)
+
+effects <- avg_comparisons(fit,
+                variables = "in_program",
+                vcov = ~subclass,
+                newdata = subset(matchit_matched_data, in_program == 1),
+                wts = "weights")
+
+effects
+
+```
+```{r in_program_current_vs_previous}
+
+library(ggplot2)
+
+in_program_current_vs_previous <- project_data %>%
+  mutate(grade_equivalent_renstar_growth = grade_equivalent_renstar_eoy - grade_equivalent_renstar_boy) %>%
+  filter(!is.na(grade_equivalent_renstar_growth)) %>%
+  filter(in_program == 1) 
+
+  
+print(summary(in_program_current_vs_previous))
+
+hist(in_program_current_vs_previous$grade_equivalent_renstar_growth)
+
+ggplot(data=in_program_current_vs_previous, aes(x=grade_level_id, y=grade_equivalent_renstar_boy, fill=academic_year)) +
+geom_bar(aes(x=grade_level_id, y=grade_equivalent_renstar_boy, fill=as.factor(academic_year)), stat="summary", position = "dodge",  fun.y = "mean")
+
+print(summary(in_program_current_vs_previous %>% filter(academic_year == '2023-2024')))
+
+print(summary(in_program_current_vs_previous %>% filter(academic_year == '2022-2023')))
+
+```
+
+```{r staar_level}
+
+library(MatchIt)
+library("marginaleffects")
+
+matchit_data_staar_level <- project_data_full %>%
+  filter(!is.na(staar_score_staar_reading),
+         !is.na(grade_equivalent_renstar_boy))
+
+matchit_check <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name + 
+                    staar_score_staar_reading + grade_equivalent_renstar_boy, 
+                    data = matchit_data_staar_level, method = NULL, distance = "glm")
+
+summary(matchit_check)
+
+
+
+matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+                    staar_score_staar_reading + grade_equivalent_renstar_boy,
+                    data = matchit_data_staar_level, method = "nearest", distance = "glm")
+
+
+summary(matchit_match)
+
+plot(summary(matchit_match))
+
+plot(matchit_match, type = "jitter", interactive = FALSE)
+
+plot(matchit_match, type = "density", interactive = FALSE,
+     which.xs = ~ grade_level_id + sped + is_csi + region_name + 
+                    grade_equivalent_renstar_boy)
+
+
+
+matchit_matched_data <- match.data(matchit_match)
+
+fit <- lm(staar_score_staar_reading ~ in_program * (grade_level_id + sped + is_csi + region_name + 
+                    grade_equivalent_renstar_boy), data = matchit_matched_data, 
+          weights = weights)
+
+effects <- avg_comparisons(fit,
+                variables = "in_program",
+                vcov = ~subclass,
+                newdata = subset(matchit_matched_data, in_program == 1),
+                wts = "weights")
+
+effects
+```
+
+
+```{r staar_progress}
+
+library(MatchIt)
+library("marginaleffects")
+
+matchit_data_staar_level <- project_data_full %>%
+  filter(!is.na(progress_measure_staar_reading),
+         !is.na(grade_equivalent_renstar_boy))
+
+matchit_check <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name + 
+                    progress_measure_staar_reading + grade_equivalent_renstar_boy, 
+                    data = matchit_data_staar_level, method = NULL, distance = "glm")
+
+summary(matchit_check)
+
+
+
+matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+                    progress_measure_staar_reading + grade_equivalent_renstar_boy,
+                    data = matchit_data_staar_level, method = "nearest", distance = "glm")
+
+
+summary(matchit_match)
+
+plot(summary(matchit_match))
+
+plot(matchit_match, type = "jitter", interactive = FALSE)
+
+plot(matchit_match, type = "density", interactive = FALSE,
+     which.xs = ~ grade_level_id + sped + is_csi + region_name + 
+                    grade_equivalent_renstar_boy)
+
+
+
+matchit_matched_data <- match.data(matchit_match)
+
+fit <- lm(progress_measure_staar_reading ~ in_program * (grade_level_id + sped + is_csi + region_name + 
+                    grade_equivalent_renstar_boy), data = matchit_matched_data, 
+          weights = weights)
+
+effects <- avg_comparisons(fit,
+                variables = "in_program",
+                vcov = ~subclass,
+                newdata = subset(matchit_matched_data, in_program == 1),
+                wts = "weights")
+
+effects
 ```
