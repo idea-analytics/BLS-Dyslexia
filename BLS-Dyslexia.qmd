@@ -142,49 +142,26 @@ effects <- avg_comparisons(fit,
 effects
 
 ```
-```{r in_program_current_vs_previous}
-
-library(ggplot2)
-
-in_program_current_vs_previous <- project_data %>%
-  mutate(grade_equivalent_renstar_growth = grade_equivalent_renstar_eoy - grade_equivalent_renstar_boy) %>%
-  filter(!is.na(grade_equivalent_renstar_growth)) %>%
-  filter(in_program == 1) 
-
-  
-print(summary(in_program_current_vs_previous))
-
-hist(in_program_current_vs_previous$grade_equivalent_renstar_growth)
-
-ggplot(data=in_program_current_vs_previous, aes(x=grade_level_id, y=grade_equivalent_renstar_boy, fill=academic_year)) +
-geom_bar(aes(x=grade_level_id, y=grade_equivalent_renstar_boy, fill=as.factor(academic_year)), stat="summary", position = "dodge",  fun.y = "mean")
-
-print(summary(in_program_current_vs_previous %>% filter(academic_year == '2023-2024')))
-
-print(summary(in_program_current_vs_previous %>% filter(academic_year == '2022-2023')))
-
-```
-
-```{r staar_level}
+```{r star_level_current_renstar_boy}
 
 library(MatchIt)
 library("marginaleffects")
 
-matchit_data_staar_level <- project_data_full %>%
-  filter(!is.na(staar_score_staar_reading),
-         !is.na(grade_equivalent_renstar_boy))
+matchit_data_star_level <- project_data_full %>%
+  filter(!is.na(grade_equivalent_renstar_boy),
+         !is.na(staar_score_staar_reading))
 
 matchit_check <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name + 
-                    staar_score_staar_reading + grade_equivalent_renstar_boy, 
-                    data = matchit_data_staar_level, method = NULL, distance = "glm")
+                    grade_equivalent_renstar_boy + staar_score_staar_reading, 
+                    data = matchit_data_star_level, method = NULL, distance = "glm")
 
 summary(matchit_check)
 
 
 
 matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
-                    staar_score_staar_reading + grade_equivalent_renstar_boy,
-                    data = matchit_data_staar_level, method = "nearest", distance = "glm")
+                    grade_equivalent_renstar_boy + staar_score_staar_reading,
+                    data = matchit_data_star_level, method = "nearest", distance = "glm")
 
 
 summary(matchit_match)
@@ -212,9 +189,58 @@ effects <- avg_comparisons(fit,
                 wts = "weights")
 
 effects
+
 ```
 
+```{r star_level_previous_renstar_boy}
 
+library(MatchIt)
+library("marginaleffects")
+
+matchit_data_star_level <- project_data_full %>%
+  filter(!is.na(`2022_2023_grade_equivalent_renstar_boy`),
+         !is.na(staar_score_staar_reading))
+
+matchit_check <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_boy` + staar_score_staar_reading, 
+                    data = matchit_data_star_level, method = NULL, distance = "glm")
+
+summary(matchit_check)
+
+
+
+matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+                    `2022_2023_grade_equivalent_renstar_boy` + staar_score_staar_reading,
+                    data = matchit_data_star_level, method = "nearest", distance = "glm")
+
+
+summary(matchit_match)
+
+plot(summary(matchit_match))
+
+plot(matchit_match, type = "jitter", interactive = FALSE)
+
+plot(matchit_match, type = "density", interactive = FALSE,
+     which.xs = ~ grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_boy`)
+
+
+
+matchit_matched_data <- match.data(matchit_match)
+
+fit <- lm(staar_score_staar_reading ~ in_program * (grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_boy`), data = matchit_matched_data, 
+          weights = weights)
+
+effects <- avg_comparisons(fit,
+                variables = "in_program",
+                vcov = ~subclass,
+                newdata = subset(matchit_matched_data, in_program == 1),
+                wts = "weights")
+
+effects
+
+```
 ```{r staar_progress}
 
 library(MatchIt)
@@ -262,4 +288,115 @@ effects <- avg_comparisons(fit,
                 wts = "weights")
 
 effects
+```
+
+```{r in_program_current_vs_previous}
+
+library(ggplot2)
+
+in_program_current_vs_previous <- project_data %>%
+  mutate(grade_equivalent_renstar_growth = grade_equivalent_renstar_eoy - grade_equivalent_renstar_boy) %>%
+  filter(!is.na(grade_equivalent_renstar_growth)) %>%
+  filter(in_program == 1) 
+
+  
+print(summary(in_program_current_vs_previous))
+
+hist(in_program_current_vs_previous$grade_equivalent_renstar_growth)
+
+ggplot(data=in_program_current_vs_previous, aes(x=grade_level_id, y=grade_equivalent_renstar_boy, fill=academic_year)) +
+geom_bar(aes(x=grade_level_id, y=grade_equivalent_renstar_boy, fill=as.factor(academic_year)), stat="summary", position = "dodge",  fun.y = "mean")
+
+
+```
+
+
+```{r graph_model_star_level_renstar_previous_boy}
+
+
+library(MatchIt)
+library("marginaleffects")
+
+matchit_data_star_level <- project_data_full %>%
+  filter(!is.na(`2022_2023_grade_equivalent_renstar_boy`),
+         !is.na(staar_score_staar_reading))
+
+
+matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+                    `2022_2023_grade_equivalent_renstar_boy` + staar_score_staar_reading,
+                    data = matchit_data_star_level, method = "nearest", distance = "glm")
+
+
+summary(matchit_match)
+
+plot(summary(matchit_match))
+
+plot(matchit_match, type = "jitter", interactive = FALSE)
+
+plot(matchit_match, type = "density", interactive = FALSE,
+     which.xs = ~ grade_level_id + sped + is_csi + region_name + 
+                    `2022_2023_grade_equivalent_renstar_boy`)
+
+
+
+matchit_matched_data <- match.data(matchit_match)
+
+matchit_matched_data %>%
+  mutate(in_program = if_else(in_program == 1, "In Program", "Not In Program"),
+         in_program = as.factor(in_program)) %>%
+ggplot(aes(x=in_program, y=staar_score_staar_reading, fill=in_program)) +
+geom_bar(aes(x=in_program, y=staar_score_staar_reading, fill=as.factor(in_program)), stat="summary", position = "dodge",  fun.y = "mean")
+
+matchit_matched_data %>%
+  mutate(in_program = if_else(in_program == 1, "In Program", "Not In Program"),
+         in_program = as.factor(in_program),
+         staar_score_staar_reading_text = case_when(staar_score_staar_reading == 0 ~ "Did Not Meet",
+                                                    staar_score_staar_reading == 1 ~ "Approaches",
+                                                    staar_score_staar_reading == 2 ~ "Meets",
+                                                    staar_score_staar_reading == 3 ~ "Masters",
+                                                    TRUE ~ NA)) %>%
+ggplot(aes(x=in_program, y=staar_score_staar_reading)) +
+geom_count(aes(x=in_program, color=after_stat(n), size = after_stat(n))) +
+  guides(color = 'legend')
+
+t.test(matchit_matched_data$staar_score_staar_reading)
+
+```
+
+```{r graph_model_star_level_renstar_current_boy}
+
+
+library(MatchIt)
+library("marginaleffects")
+
+matchit_data_star_level <- project_data_full %>%
+  filter(!is.na(grade_equivalent_renstar_boy),
+         !is.na(staar_score_staar_reading))
+
+
+matchit_match <- matchit(in_program ~ grade_level_id + sped + is_csi + region_name +
+                    grade_equivalent_renstar_boy + staar_score_staar_reading,
+                    data = matchit_data_star_level, method = "nearest", distance = "glm")
+
+
+summary(matchit_match)
+
+plot(summary(matchit_match))
+
+plot(matchit_match, type = "jitter", interactive = FALSE)
+
+plot(matchit_match, type = "density", interactive = FALSE,
+     which.xs = ~ grade_level_id + sped + is_csi + region_name + 
+                    grade_equivalent_renstar_boy)
+
+
+
+matchit_matched_data <- match.data(matchit_match)
+
+
+ggplot(data=matchit_matched_data, aes(x=in_program, y=staar_score_staar_reading, fill=in_program)) +
+geom_bar(aes(x=in_program, y=staar_score_staar_reading, fill=as.factor(in_program)), stat="summary", position = "dodge",  fun.y = "mean")
+
+t.test(matchit_matched_data$staar_score_staar_reading)
+
 ```
